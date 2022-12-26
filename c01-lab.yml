@@ -1,0 +1,84 @@
+---
+- name: set up a new env
+  hosts: localhost
+  tasks:
+    - name: check vars exist
+      fail:
+        msg: "{{ managed_ip and managed_host are not defined, please specify -e managed_ip=<IP> managed_hostname=<hostname> }}"
+      when: (managed_ip and managed_hostname) is not defined
+    - name: update local /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ managed_ip }} {{ managed_hostname }}.example.com {{ managed_hostname }}"
+        state: present
+    - name: add hostname to the inventory
+      lineinfile:
+        path: inventory
+        line: "{{ managed_hostname }}"
+        state: present
+  tags: setinventory
+
+- name: setup ansible user
+  remote_user: root
+  hosts: ansible5
+  vars_files: secrets/pass.yml
+  tasks:
+    - name: Add ansible user
+      user:
+        name: "{{ username_ }}"
+        password: "{{ password_ | password_hash('sha256') }}"
+        groups: wheel
+    - name: Copy key
+      copy:
+        src: /home/ansible/.ssh/id_rsa.pub
+        dest: /home/ansible/.ssh/authorized_keys
+    - name: Allow sudo
+      lineinfile:
+        regexp: "^#*%wheel"
+        path: /etc/sudoers
+        line: "%wheel        ALL=(ALL)       NOPASSWD: ALL"
+  tags: addansibleuser
+
+- name: Do a sudo task as a ansible user
+  hosts: ansible5
+  remote_user: ansible
+  tasks:
+    - shell:
+        cmd: "cat /etc/sudoers"
+
+- name: Register system
+  hosts: ansible5
+  remote_user: ansible
+  vars_files: secrets/pass.yml
+  tasks:
+    - name: Add a subscription
+      redhat_subscription:
+        username: "{{ rhusername_ }}"
+        password: "{{ rhpassword_ }}"
+        auto_attach: true
+        force_register: true
+        state: present
+    - name: Add a repo
+      rhsm_repository:
+        name: rh-gluster-3-client-for-rhel-8-x86_64-rpms
+        state: present
+  tags: registersystem
+
+- name: Test tasks
+  hosts: ansible5
+  tasks:
+    - name: Update system
+      yum:
+        name: '*'
+        state: latest
+  tags: updatesystem
+
+
+
+#- name: Update system as ansible
+#  hosts: ansible5
+#  remote_user: ansible
+#  tasks:
+#    - yum:
+#        name: '*'
+#        state: latest

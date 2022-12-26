@@ -1,0 +1,2 @@
+#!/bin/bash
+ansible-playbook c01-lab.yml -e managed_ip=192.168.159.105 -e managed_hostname=ansible5 --ask-pass --vault-password-file=vault.pass
