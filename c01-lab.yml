@@ -72,13 +72,3 @@
         name: '*'
         state: latest
   tags: updatesystem
-
-
-
-#- name: Update system as ansible
-#  hosts: ansible5
-#  remote_user: ansible
-#  tasks:
-#    - yum:
-#        name: '*'
-#        state: latest
